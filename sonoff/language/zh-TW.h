@@ -1,7 +1,7 @@
 /*
   zh-TW.h - localization for Chinese (Traditional) - Taiwan for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends (translated by dannydu)
+  Copyright (C) 2019  Theo Arends (translated by dannydu)
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -132,6 +132,7 @@
 #define D_PROGRAM_FLASH_SIZE "韌體 Flash 大小"
 #define D_PROGRAM_SIZE "韌體大小"
 #define D_PROJECT "項目:"
+#define D_RAIN "Rain"
 #define D_RECEIVED "已接收"
 #define D_RESTART "重啟"
 #define D_RESTARTING "正在重啟"
@@ -252,6 +253,7 @@
 
 #define D_MODULE_PARAMETERS "模塊設置"
 #define D_MODULE_TYPE "模塊類型"
+#define D_PULLUP_ENABLE "No Button/Switch pull-up"
 #define D_GPIO "GPIO"
 #define D_SERIAL_IN "串口輸入(RX)"
 #define D_SERIAL_OUT "串口輸出(TX)"
@@ -515,8 +517,8 @@
 #define D_SENSOR_SBR_TX   "SerBr Tx"
 #define D_SENSOR_SR04_TRIG "SR04 Tri"
 #define D_SENSOR_SR04_ECHO "SR04 Ech"
-#define D_SENSOR_SDM120_TX "SDM120 Tx"
-#define D_SENSOR_SDM120_RX "SDM120 Rx"
+#define D_SENSOR_SDM120_TX "SDM120/220 Tx"
+#define D_SENSOR_SDM120_RX "SDM120/220 Rx"
 #define D_SENSOR_SDM630_TX "SDM630 Tx"
 #define D_SENSOR_SDM630_RX "SDM630 Rx"
 #define D_SENSOR_TM1638_CLK "TM16 CLK"
@@ -527,6 +529,21 @@
 #define D_SENSOR_TX20_TX "TX20"
 #define D_SENSOR_RFSEND "RFSend"
 #define D_SENSOR_RFRECV "RFrecv"
+#define D_SENSOR_TUYA_TX "Tuya Tx"
+#define D_SENSOR_TUYA_RX "Tuya Rx"
+#define D_SENSOR_MGC3130_XFER "MGC3130 Xfer"
+#define D_SENSOR_MGC3130_RESET "MGC3130 Reset"
+#define D_SENSOR_SSPI_MISO "SSPI MISO"
+#define D_SENSOR_SSPI_MOSI "SSPI MOSI"
+#define D_SENSOR_SSPI_SCLK "SSPI SCLK"
+#define D_SENSOR_SSPI_CS   "SSPI CS"
+#define D_SENSOR_SSPI_DC   "SSPI DC"
+#define D_SENSOR_RF_SENSOR "RF Sensor"
+#define D_SENSOR_AZ_RX   "AZ Rx"
+#define D_SENSOR_AZ_TX   "AZ Tx"
+#define D_SENSOR_MAX31855_CS  "MAX31855 CS"
+#define D_SENSOR_MAX31855_CLK "MAX31855 CLK"
+#define D_SENSOR_MAX31855_DO  "MAX31855 DO"
 
 // Units
 #define D_UNIT_AMPERE "安"
@@ -535,7 +552,7 @@
 #define D_UNIT_HOUR "時"
 #define D_UNIT_INCREMENTS "inc"
 #define D_UNIT_KILOGRAM "kg"
-#define D_UNIT_KILOMETER_PER_HOUR "kmph"  // or "km/h"
+#define D_UNIT_KILOMETER_PER_HOUR "km/h"  // or "km/h"
 #define D_UNIT_KILOOHM "千歐"
 #define D_UNIT_KILOWATTHOUR "千瓦時"
 #define D_UNIT_LUX "勒克斯"
@@ -543,6 +560,8 @@
 #define D_UNIT_MICROMETER "微米"
 #define D_UNIT_MICROSECOND "微秒"
 #define D_UNIT_MILLIAMPERE "毫安"
+#define D_UNIT_MILLIMETER "mm"
+#define D_UNIT_MILLIMETER_MERCURY "mmHg"
 #define D_UNIT_MILLISECOND "毫秒"
 #define D_UNIT_MINUTE "分"
 #define D_UNIT_PARTS_PER_BILLION "ppb"
@@ -582,5 +601,15 @@
 #define D_LOG_UPLOAD "UPL: "       // Upload
 #define D_LOG_UPNP "UPP: "         // UPnP
 #define D_LOG_WIFI "WIF: "         // Wifi
+
+//SDM220
+#define D_PHASE_ANGLE     "Phase Angle"
+#define D_IMPORT_ACTIVE   "Import Active"
+#define D_EXPORT_ACTIVE   "Export Active"
+#define D_IMPORT_REACTIVE "Import Reactive"
+#define D_EXPORT_REACTIVE "Export Reactive"
+#define D_TOTAL_REACTIVE  "Total Reactive"
+#define D_UNIT_KWARH      "kVArh"
+#define D_UNIT_ANGLE      "Deg"
 
 #endif  // _LANGUAGE_ZH_TW_H_

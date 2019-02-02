@@ -1,7 +1,7 @@
 /*
   xsns_34_hx711.ino - HX711 load cell support for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends
+  Copyright (C) 2019  Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -67,12 +67,12 @@ long hx_offset = 0;
 long hx_scale = 1;
 uint8_t hx_type = 1;
 uint8_t hx_sample_count = 0;
-uint8_t hx_tare_flg = 0;
 uint8_t hx_calibrate_step = HX_CAL_END;
 uint8_t hx_calibrate_timer = 0;
 uint8_t hx_calibrate_msg = 0;
 uint8_t hx_pin_sck;
 uint8_t hx_pin_dout;
+bool hx_tare_flg = false;
 
 /*********************************************************************************************/
 
@@ -116,9 +116,9 @@ long HxRead()
 
 /*********************************************************************************************/
 
-void HxReset()
+void HxReset(void)
 {
-  hx_tare_flg = 1;
+  hx_tare_flg = true;
   hx_sum_weight = 0;
   hx_sample_count = 0;
 }
@@ -149,13 +149,13 @@ void HxCalibrationStateTextJson(uint8_t msg_id)
  * Sensor34 6 <weight in decigram> - Set item weight
 \*********************************************************************************************/
 
-bool HxCommand()
+bool HxCommand(void)
 {
   bool serviced = true;
   bool show_parms = false;
   char sub_string[XdrvMailbox.data_len +1];
 
-  for (byte ca = 0; ca < XdrvMailbox.data_len; ca++) {
+  for (uint8_t ca = 0; ca < XdrvMailbox.data_len; ca++) {
     if ((' ' == XdrvMailbox.data[ca]) || ('=' == XdrvMailbox.data[ca])) { XdrvMailbox.data[ca] = ','; }
   }
 
@@ -204,7 +204,7 @@ bool HxCommand()
   }
 
   if (show_parms) {
-    char item[10];
+    char item[33];
     dtostrfd((float)Settings.weight_item / 10, 1, item);
     snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"Sensor34\":{\"" D_JSON_WEIGHT_REF "\":%d,\"" D_JSON_WEIGHT_CAL "\":%d,\"" D_JSON_WEIGHT_MAX "\":%d,\"" D_JSON_WEIGHT_ITEM "\":%s}}"),
       Settings.weight_reference, Settings.weight_calibration, Settings.weight_max * 1000, item);
@@ -220,7 +220,7 @@ long HxWeight()
   return (hx_calibrate_step < HX_CAL_FAIL) ? hx_weight : 0;
 }
 
-void HxInit()
+void HxInit(void)
 {
   hx_type = 0;
   if ((pin[GPIO_HX711_DAT] < 99) && (pin[GPIO_HX711_SCK] < 99)) {
@@ -245,7 +245,7 @@ void HxInit()
   }
 }
 
-void HxEvery100mSecond()
+void HxEvery100mSecond(void)
 {
   hx_sum_weight += HxRead();
 
@@ -257,7 +257,7 @@ void HxEvery100mSecond()
     if (hx_weight < 0) { hx_weight = 0; }
 
     if (hx_tare_flg) {
-      hx_tare_flg = 0;
+      hx_tare_flg = false;
       hx_offset = average;                           // grams
     }
 
@@ -270,7 +270,7 @@ void HxEvery100mSecond()
       }
       else if (HX_CAL_RESET == hx_calibrate_step) {  // Wait for stable reset
         if (hx_calibrate_timer) {
-          if (hx_weight < Settings.weight_reference) {
+          if (hx_weight < (long)Settings.weight_reference) {
             hx_calibrate_step--;
             hx_calibrate_timer = HX_CAL_TIMEOUT * (10 / HX_SAMPLES);
             HxCalibrationStateTextJson(2);
@@ -281,7 +281,7 @@ void HxEvery100mSecond()
       }
       else if (HX_CAL_FIRST == hx_calibrate_step) {  // Wait for first reference weight
         if (hx_calibrate_timer) {
-          if (hx_weight > Settings.weight_reference) {
+          if (hx_weight > (long)Settings.weight_reference) {
             hx_calibrate_step--;
           }
         } else {
@@ -289,7 +289,7 @@ void HxEvery100mSecond()
         }
       }
       else if (HX_CAL_DONE == hx_calibrate_step) {   // Second stable reference weight
-        if (hx_weight > Settings.weight_reference) {
+        if (hx_weight > (long)Settings.weight_reference) {
           hx_calibrate_step = HX_CAL_FINISH;         // Calibration done
           Settings.weight_calibration = hx_weight / Settings.weight_reference;
           hx_weight = 0;                             // Reset calibration value
@@ -301,7 +301,7 @@ void HxEvery100mSecond()
 
       if (HX_CAL_FAIL == hx_calibrate_step) {        // Calibration failed
         hx_calibrate_step--;
-        hx_tare_flg = 1;                             // Perform a reset using old scale
+        hx_tare_flg = true;                          // Perform a reset using old scale
         HxCalibrationStateTextJson(0);
       }
       if (HX_CAL_FINISH == hx_calibrate_step) {      // Calibration finished
@@ -329,9 +329,8 @@ const char HTTP_HX711_CAL[] PROGMEM = "%s"
   "{s}HX711 %s{m}{e}";
 #endif  // USE_WEBSERVER
 
-void HxShow(boolean json)
+void HxShow(bool json)
 {
-  char weight_chr[10];
   char scount[30] = { 0 };
 
   uint16_t count = 0;
@@ -345,6 +344,7 @@ void HxShow(boolean json)
     }
     weight = (float)hx_weight / 1000;                // kilograms
   }
+  char weight_chr[33];
   dtostrfd(weight, Settings.flag2.weight_resolution, weight_chr);
 
   if (json) {
@@ -391,10 +391,10 @@ const char HTTP_FORM_HX711[] PROGMEM =
   "<form method='post' action='" WEB_HANDLE_HX711 "'>"
   "<br/><b>" D_ITEM_WEIGHT "</b> (" D_UNIT_KILOGRAM ")<br/><input type='number' max='6.5535' step='0.0001' id='p2' name='p2' placeholder='0.0' value='{2'><br/>";
 
-void HandleHxAction()
+void HandleHxAction(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, S_CONFIGURE_HX711);
 
   if (WebServer->hasArg("save")) {
@@ -440,7 +440,7 @@ void HandleHxAction()
   ShowPage(page);
 }
 
-void HxSaveSettings()
+void HxSaveSettings(void)
 {
   char tmp[100];
 
@@ -450,12 +450,11 @@ void HxSaveSettings()
   HxLogUpdates();
 }
 
-void HxLogUpdates()
+void HxLogUpdates(void)
 {
-  char weigth_ref_chr[10];
-  char weigth_item_chr[10];
-
+  char weigth_ref_chr[33];
   dtostrfd((float)Settings.weight_reference / 1000, Settings.flag2.weight_resolution, weigth_ref_chr);
+  char weigth_item_chr[33];
   dtostrfd((float)Settings.weight_item / 10000, 4, weigth_item_chr);
 
   snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_WIFI D_JSON_WEIGHT_REF " %s, " D_JSON_WEIGHT_ITEM " %s"),
@@ -470,9 +469,9 @@ void HxLogUpdates()
  * Interface
 \*********************************************************************************************/
 
-boolean Xsns34(byte function)
+bool Xsns34(uint8_t function)
 {
-  boolean result = false;
+  bool result = false;
 
   if (hx_type) {
     switch (function) {
@@ -496,10 +495,10 @@ boolean Xsns34(byte function)
         break;
 #ifdef USE_HX711_GUI
       case FUNC_WEB_ADD_MAIN_BUTTON:
-        strncat_P(mqtt_data, HTTP_BTN_MENU_MAIN_HX711, sizeof(mqtt_data));
+        strncat_P(mqtt_data, HTTP_BTN_MENU_MAIN_HX711, sizeof(mqtt_data) - strlen(mqtt_data) -1);
         break;
       case FUNC_WEB_ADD_BUTTON:
-        strncat_P(mqtt_data, HTTP_BTN_MENU_HX711, sizeof(mqtt_data));
+        strncat_P(mqtt_data, HTTP_BTN_MENU_HX711, sizeof(mqtt_data) - strlen(mqtt_data) -1);
         break;
       case FUNC_WEB_ADD_HANDLER:
         WebServer->on("/" WEB_HANDLE_HX711, HandleHxAction);

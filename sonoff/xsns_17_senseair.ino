@@ -1,7 +1,7 @@
 /*
   xsns_17_senseair.ino - SenseAir CO2 sensor support for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends
+  Copyright (C) 2019  Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
  *
  * Hardware Serial will be selected if GPIO1 = [SAir Rx] and GPIO3 = [SAir Tx]
 \*********************************************************************************************/
+
+#define XSNS_17                      17
 
 #define SENSEAIR_MODBUS_SPEED        9600
 #define SENSEAIR_DEVICE_ADDRESS      0xFE    // Any address
@@ -56,7 +58,7 @@ const uint8_t start_addresses[] { 0x1A, 0x00, 0x03, 0x04, 0x05, 0x1C, 0x0A };
 uint8_t senseair_read_state = 0;
 uint8_t senseair_send_retry = 0;
 
-void Senseair250ms()              // Every 250 mSec
+void Senseair250ms(void)              // Every 250 mSec
 {
 //  senseair_state++;
 //  if (6 == senseair_state) {     // Every 300 mSec
@@ -130,7 +132,7 @@ void Senseair250ms()              // Every 250 mSec
 
 /*********************************************************************************************/
 
-void SenseairInit()
+void SenseairInit(void)
 {
   senseair_type = 0;
   if ((pin[GPIO_SAIR_RX] < 99) && (pin[GPIO_SAIR_TX] < 99)) {
@@ -143,11 +145,11 @@ void SenseairInit()
   }
 }
 
-void SenseairShow(boolean json)
+void SenseairShow(bool json)
 {
-  char temperature[10];
-  char humidity[10];
+  char temperature[33];
   dtostrfd(senseair_temperature, Settings.flag2.temperature_resolution, temperature);
+  char humidity[33];
   dtostrfd(senseair_humidity, Settings.flag2.temperature_resolution, humidity);
   GetTextIndexed(senseair_types, sizeof(senseair_types), senseair_type -1, kSenseairTypes);
 
@@ -175,11 +177,9 @@ void SenseairShow(boolean json)
  * Interface
 \*********************************************************************************************/
 
-#define XSNS_17
-
-boolean Xsns17(byte function)
+bool Xsns17(uint8_t function)
 {
-  boolean result = false;
+  bool result = false;
 
   if (senseair_type) {
     switch (function) {

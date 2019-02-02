@@ -1,7 +1,7 @@
 /*
   xdrv_09_timers.ino - timer support for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends
+  Copyright (C) 2019  Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -35,6 +35,8 @@
  *
 \*********************************************************************************************/
 
+#define XDRV_09             9
+
 enum TimerCommands { CMND_TIMER, CMND_TIMERS
 #ifdef USE_SUNRISE
 , CMND_LATITUDE, CMND_LONGITUDE
@@ -62,7 +64,7 @@ const double pi2 = TWO_PI;
 const double pi = PI;
 const double RAD = DEG_TO_RAD;
 
-double JulianischesDatum()
+double JulianischesDatum(void)
 {
   // Gregorianischer Kalender
   int Gregor;
@@ -131,9 +133,8 @@ void DuskTillDawn(uint8_t *hour_up,uint8_t *minute_up, uint8_t *hour_down, uint8
 //  double Zeitzone = 0; //Weltzeit
 //  double Zeitzone = 1; //Winterzeit
 //  double Zeitzone = 2.0;   //Sommerzeit
-  double Zeitzone = ((double)time_timezone) / 10;
+  double Zeitzone = ((double)time_timezone) / 60;
   double Zeitgleichung = BerechneZeitgleichung(&DK, T);
-  double Minuten = Zeitgleichung * 60.0;
   double Zeitdifferenz = 12.0*acos((sin(h) - sin(B)*sin(DK)) / (cos(B)*cos(DK)))/pi;
   double AufgangOrtszeit = 12.0 - Zeitdifferenz - Zeitgleichung;
   double UntergangOrtszeit = 12.0 + Zeitdifferenz - Zeitgleichung;
@@ -218,7 +219,7 @@ void ApplyTimerOffsets(Timer *duskdawn)
   duskdawn->time = timeBuffer;
 }
 
-String GetSun(byte dawn)
+String GetSun(uint8_t dawn)
 {
   char stime[6];
 
@@ -231,7 +232,7 @@ String GetSun(byte dawn)
   return String(stime);
 }
 
-uint16_t GetSunMinutes(byte dawn)
+uint16_t GetSunMinutes(uint8_t dawn)
 {
   uint8_t hour[2];
   uint8_t minute[2];
@@ -245,7 +246,7 @@ uint16_t GetSunMinutes(byte dawn)
 
 /*******************************************************************************************/
 
-void TimerSetRandomWindow(byte index)
+void TimerSetRandomWindow(uint8_t index)
 {
   timer_window[index] = 0;
   if (Settings.timer[index].window) {
@@ -253,12 +254,12 @@ void TimerSetRandomWindow(byte index)
   }
 }
 
-void TimerSetRandomWindows()
+void TimerSetRandomWindows(void)
 {
-  for (byte i = 0; i < MAX_TIMERS; i++) { TimerSetRandomWindow(i); }
+  for (uint8_t i = 0; i < MAX_TIMERS; i++) { TimerSetRandomWindow(i); }
 }
 
-void TimerEverySecond()
+void TimerEverySecond(void)
 {
   if (RtcTime.valid) {
     if (!RtcTime.hour && !RtcTime.minute && !RtcTime.second) { TimerSetRandomWindows(); }  // Midnight
@@ -267,7 +268,7 @@ void TimerEverySecond()
       int16_t time = (RtcTime.hour *60) + RtcTime.minute;
       uint8_t days = 1 << (RtcTime.day_of_week -1);
 
-      for (byte i = 0; i < MAX_TIMERS; i++) {
+      for (uint8_t i = 0; i < MAX_TIMERS; i++) {
 //        if (Settings.timer[i].device >= devices_present) Settings.timer[i].data = 0;  // Reset timer due to change in devices present
         Timer xtimer = Settings.timer[i];
         uint16_t set_time = xtimer.time;
@@ -307,7 +308,7 @@ void PrepShowTimer(uint8_t index)
 
   Timer xtimer = Settings.timer[index -1];
 
-  for (byte i = 0; i < 7; i++) {
+  for (uint8_t i = 0; i < 7; i++) {
     uint8_t mask = 1 << i;
     snprintf(days, sizeof(days), "%s%d", days, ((xtimer.days & mask) > 0));
   }
@@ -336,11 +337,11 @@ void PrepShowTimer(uint8_t index)
  * Commands
 \*********************************************************************************************/
 
-boolean TimerCommand()
+bool TimerCommand(void)
 {
   char command[CMDSZ];
   char dataBufUc[XdrvMailbox.data_len];
-  boolean serviced = true;
+  bool serviced = true;
   uint8_t index = XdrvMailbox.index;
 
   UpperCase(dataBufUc, XdrvMailbox.data);
@@ -463,9 +464,9 @@ boolean TimerCommand()
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, GetStateText(Settings.flag3.timers_enable));
     MqttPublishPrefixTopic_P(RESULT_OR_STAT, command);
 
-    byte jsflg = 0;
-    byte lines = 1;
-    for (byte i = 0; i < MAX_TIMERS; i++) {
+    uint8_t jsflg = 0;
+    uint8_t lines = 1;
+    for (uint8_t i = 0; i < MAX_TIMERS; i++) {
       if (!jsflg) {
         snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_CMND_TIMERS "%d\":{"), lines++);
       } else {
@@ -486,7 +487,7 @@ boolean TimerCommand()
     if (XdrvMailbox.data_len) {
       Settings.longitude = (int)(CharToDouble(XdrvMailbox.data) *1000000);
     }
-    char lbuff[32];
+    char lbuff[33];
     dtostrfd(((double)Settings.longitude) /1000000, 6, lbuff);
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, lbuff);
   }
@@ -494,7 +495,7 @@ boolean TimerCommand()
     if (XdrvMailbox.data_len) {
       Settings.latitude = (int)(CharToDouble(XdrvMailbox.data) *1000000);
     }
-    char lbuff[32];
+    char lbuff[33];
     dtostrfd(((double)Settings.latitude) /1000000, 6, lbuff);
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, lbuff);
   }
@@ -647,7 +648,9 @@ const char HTTP_TIMER_STYLE[] PROGMEM =
 #endif
   "</style>";
 const char HTTP_FORM_TIMER[] PROGMEM =
-  "<fieldset style='min-width:470px;text-align:center;'><legend style='text-align:left;'><b>&nbsp;" D_TIMER_PARAMETERS "&nbsp;</b></legend><form method='post' action='" WEB_HANDLE_TIMER "'>"
+  "<fieldset style='min-width:470px;text-align:center;'>"
+  "<legend style='text-align:left;'><b>&nbsp;" D_TIMER_PARAMETERS "&nbsp;</b></legend>"
+  "<form method='post' action='" WEB_HANDLE_TIMER "' onsubmit='return st();'>"
   "<br/><input style='width:5%;' id='e0' name='e0' type='checkbox'{e0><b>" D_TIMER_ENABLE "</b><br/><br/><hr/>"
   "<input id='t0' name='t0' value='";
 const char HTTP_FORM_TIMER1[] PROGMEM =
@@ -676,13 +679,11 @@ const char HTTP_FORM_TIMER1[] PROGMEM =
   "<span><select style='width:60px;' id='mw' name='mw'></select></span>"
   "</div><br/>"
   "<div id='ds' name='ds'></div>";
-const char HTTP_FORM_TIMER2[] PROGMEM =
-  "type='submit' onclick='st();this.form.submit();'";
 
-void HandleTimerConfiguration()
+void HandleTimerConfiguration(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, S_CONFIGURE_TIMER);
 
   if (WebServer->hasArg("save")) {
@@ -698,7 +699,7 @@ void HandleTimerConfiguration()
   page.replace(F("</style>"), FPSTR(HTTP_TIMER_STYLE));
   page += FPSTR(HTTP_FORM_TIMER);
   page.replace(F("{e0"), (Settings.flag3.timers_enable) ? F(" checked") : F(""));
-  for (byte i = 0; i < MAX_TIMERS; i++) {
+  for (uint8_t i = 0; i < MAX_TIMERS; i++) {
     if (i > 0) { page += F(","); }
     page += String(Settings.timer[i].data);
   }
@@ -710,13 +711,12 @@ void HandleTimerConfiguration()
   page.replace(F("299"), String(100 + (strlen(D_SUNSET) *12)));  // Fix string length to keep radios centered
 #endif  // USE_SUNRISE
   page += FPSTR(HTTP_FORM_END);
-  page.replace(F("type='submit'"), FPSTR(HTTP_FORM_TIMER2));
   page += F("<script>it();</script>");  // Init elements and select first tab/button
   page += FPSTR(HTTP_BTN_CONF);
   ShowPage(page);
 }
 
-void TimerSaveSettings()
+void TimerSaveSettings(void)
 {
   char tmp[MAX_TIMERS *12];  // Need space for MAX_TIMERS x 10 digit numbers separated by a comma
   Timer timer;
@@ -725,7 +725,7 @@ void TimerSaveSettings()
   WebGetArg("t0", tmp, sizeof(tmp));
   char *p = tmp;
   snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_MQTT D_CMND_TIMERS " %d"), Settings.flag3.timers_enable);
-  for (byte i = 0; i < MAX_TIMERS; i++) {
+  for (uint8_t i = 0; i < MAX_TIMERS; i++) {
     timer.data = strtol(p, &p, 10);
     p++;  // Skip comma
     if (timer.time < 1440) {
@@ -744,11 +744,9 @@ void TimerSaveSettings()
  * Interface
 \*********************************************************************************************/
 
-#define XDRV_09
-
-boolean Xdrv09(byte function)
+bool Xdrv09(uint8_t function)
 {
-  boolean result = false;
+  bool result = false;
 
   switch (function) {
     case FUNC_PRE_INIT:
@@ -758,9 +756,9 @@ boolean Xdrv09(byte function)
 #ifdef USE_TIMERS_WEB
     case FUNC_WEB_ADD_BUTTON:
 #ifdef USE_RULES
-      strncat_P(mqtt_data, HTTP_BTN_MENU_TIMER, sizeof(mqtt_data));
+      strncat_P(mqtt_data, HTTP_BTN_MENU_TIMER, sizeof(mqtt_data) - strlen(mqtt_data) -1);
 #else
-      if (devices_present) { strncat_P(mqtt_data, HTTP_BTN_MENU_TIMER, sizeof(mqtt_data)); }
+      if (devices_present) { strncat_P(mqtt_data, HTTP_BTN_MENU_TIMER, sizeof(mqtt_data) - strlen(mqtt_data) -1); }
 #endif  // USE_RULES
       break;
     case FUNC_WEB_ADD_HANDLER:

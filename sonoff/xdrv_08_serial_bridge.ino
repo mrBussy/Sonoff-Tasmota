@@ -1,7 +1,7 @@
 /*
   xdrv_08_serial_bridge.ino - serial bridge support for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends and Dániel Zoltán Tolnai
+  Copyright (C) 2019  Theo Arends and Dániel Zoltán Tolnai
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
 /*********************************************************************************************\
  * Serial Bridge using Software Serial library (TasmotaSerial)
 \*********************************************************************************************/
+
+#define XDRV_08                    8
+
 #define SERIAL_BRIDGE_BUFFER_SIZE  130
 
 #include <TasmotaSerial.h>
@@ -33,13 +36,13 @@ TasmotaSerial *SerialBridgeSerial;
 uint8_t serial_bridge_active = 1;
 uint8_t serial_bridge_in_byte_counter = 0;
 unsigned long serial_bridge_polling_window = 0;
-char serial_bridge_buffer[SERIAL_BRIDGE_BUFFER_SIZE];
+char *serial_bridge_buffer = NULL;
 
-void SerialBridgeInput()
+void SerialBridgeInput(void)
 {
   while (SerialBridgeSerial->available()) {
     yield();
-    uint8_t serial_in_byte = SerialBridgeSerial->read();
+    uint8_t serial_in_uint8_t = SerialBridgeSerial->read();
 
     if (serial_in_byte > 127) {                   // binary data...
       serial_bridge_in_byte_counter = 0;
@@ -47,7 +50,7 @@ void SerialBridgeInput()
       return;
     }
     if (serial_in_byte) {
-      if ((serial_in_byte_counter < sizeof(serial_bridge_buffer) -1) && (serial_in_byte != Settings.serial_delimiter)) {  // add char to string if it still fits
+      if ((serial_in_byte_counter < SERIAL_BRIDGE_BUFFER_SIZE -1) && (serial_in_byte != Settings.serial_delimiter)) {  // add char to string if it still fits
         serial_bridge_buffer[serial_bridge_in_byte_counter++] = serial_in_byte;
         serial_bridge_polling_window = millis();  // Wait for more data
       } else {
@@ -72,10 +75,13 @@ void SerialBridgeInit(void)
 {
   serial_bridge_active = 0;
   if ((pin[GPIO_SBR_RX] < 99) && (pin[GPIO_SBR_TX] < 99)) {
-    SerialBridgeSerial = new TasmotaSerial(pin[GPIO_SBR_RX], pin[GPIO_SBR_TX]);
-    if (SerialBridgeSerial->begin(Settings.sbaudrate * 1200)) {  // Baud rate is stored div 1200 so it fits into one byte
-      serial_bridge_active = 1;
-      SerialBridgeSerial->flush();
+    serial_bridge_buffer = (char*)(malloc(SERIAL_BRIDGE_BUFFER_SIZE));
+    if (serial_bridge_buffer != NULL) {
+      SerialBridgeSerial = new TasmotaSerial(pin[GPIO_SBR_RX], pin[GPIO_SBR_TX]);
+      if (SerialBridgeSerial->begin(Settings.sbaudrate * 1200)) {  // Baud rate is stored div 1200 so it fits into one byte
+        serial_bridge_active = 1;
+        SerialBridgeSerial->flush();
+      }
     }
   }
 }
@@ -84,26 +90,42 @@ void SerialBridgeInit(void)
  * Commands
 \*********************************************************************************************/
 
-boolean SerialBridgeCommand()
+bool SerialBridgeCommand(void)
 {
   char command [CMDSZ];
-  boolean serviced = true;
+  bool serviced = true;
 
   int command_code = GetCommandCode(command, sizeof(command), XdrvMailbox.topic, kSerialBridgeCommands);
   if (-1 == command_code) {
     serviced = false;  // Unknown command
   }
-  else if ((CMND_SSERIALSEND == command_code) && (XdrvMailbox.index > 0) && (XdrvMailbox.index <= 3)) {
-    if (XdrvMailbox.data_len > 0) {
+  else if ((CMND_SSERIALSEND == command_code) && (XdrvMailbox.index > 0) && (XdrvMailbox.index <= 5)) {
+    if (XdrvMailbox.data_len > 0) {       // "Hello Tiger\n"
       if (1 == XdrvMailbox.index) {
         SerialBridgeSerial->write(XdrvMailbox.data, XdrvMailbox.data_len);
         SerialBridgeSerial->write("\n");
       }
-      else if (2 == XdrvMailbox.index) {
+      else if ((2 == XdrvMailbox.index) || (4 == XdrvMailbox.index)) {  // "Hello Tiger" or "A0"
         SerialBridgeSerial->write(XdrvMailbox.data, XdrvMailbox.data_len);
       }
-      else if (3 == XdrvMailbox.index) {
+      else if (3 == XdrvMailbox.index) {  // "Hello\f"
         SerialBridgeSerial->write(Unescape(XdrvMailbox.data, &XdrvMailbox.data_len), XdrvMailbox.data_len);
+      }
+      else if (5 == XdrvMailbox.index) {  // "AA004566" as hex values
+        char *p;
+        char stemp[3];
+        uint8_t code;
+
+        char *codes = RemoveSpace(XdrvMailbox.data);
+        int size = strlen(XdrvMailbox.data);
+
+        while (size > 0) {
+          snprintf(stemp, sizeof(stemp), codes);
+          code = strtol(stemp, &p, 16);
+          SerialBridgeSerial->write(code);
+          size -= 2;
+          codes += 2;
+        }
       }
       snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, D_JSON_DONE);
     }
@@ -116,10 +138,10 @@ boolean SerialBridgeCommand()
       Settings.sbaudrate = (1 == XdrvMailbox.payload) ? SOFT_BAUDRATE / 1200 : baud;
       SerialBridgeSerial->begin(Settings.sbaudrate * 1200);  // Reinitialize serial port with new baud rate
     }
-    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_LVALUE, command, Settings.sbaudrate * 1200);
+    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_NVALUE, command, Settings.sbaudrate * 1200);
   }
   else serviced = false;  // Unknown command
-  
+
   return serviced;
 }
 
@@ -127,11 +149,9 @@ boolean SerialBridgeCommand()
  * Interface
 \*********************************************************************************************/
 
-#define XDRV_08
-
-boolean Xdrv08(byte function)
+bool Xdrv08(uint8_t function)
 {
-  boolean result = false;
+  bool result = false;
 
   if (serial_bridge_active) {
     switch (function) {

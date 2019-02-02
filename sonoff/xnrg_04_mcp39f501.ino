@@ -1,7 +1,7 @@
 /*
   xnrg_04_mcp39f501.ino - MCP39F501 energy sensor support for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends
+  Copyright (C) 2019  Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -112,7 +112,7 @@ uint8_t McpChecksum(uint8_t *data)
   uint8_t offset = 0;
   uint8_t len = data[1] -1;
 
-  for (byte i = offset; i < len; i++) { checksum += data[i];	}
+  for (uint8_t i = offset; i < len; i++) { checksum += data[i];	}
   return checksum;
 }
 
@@ -121,7 +121,7 @@ unsigned long McpExtractInt(char *data, uint8_t offset, uint8_t size)
 	unsigned long result = 0;
 	unsigned long pow = 1;
 
-	for (byte i = 0; i < size; i++) {
+	for (uint8_t i = 0; i < size; i++) {
 		result = result + (uint8_t)data[offset + i] * pow;
 		pow = pow * 256;
 	}
@@ -130,7 +130,7 @@ unsigned long McpExtractInt(char *data, uint8_t offset, uint8_t size)
 
 void McpSetInt(unsigned long value, uint8_t *data, uint8_t offset, size_t size)
 {
-	for (byte i = 0; i < size; i++) {
+	for (uint8_t i = 0; i < size; i++) {
 		data[offset + i] = ((value >> (i * 8)) & 0xFF);
 	}
 }
@@ -143,9 +143,9 @@ void McpSend(uint8_t *data)
   data[0] = MCP_START_FRAME;
   data[data[1] -1] = McpChecksum(data);
 
-//  AddLogSerial(LOG_LEVEL_DEBUG_MORE, data, data[1]);
+//  AddLogBuffer(LOG_LEVEL_DEBUG_MORE, data, data[1]);
 
-  for (byte i = 0; i < data[1]; i++) {
+  for (uint8_t i = 0; i < data[1]; i++) {
     Serial.write(data[i]);
   }
 }
@@ -562,9 +562,9 @@ void McpDrvInit(void)
   }
 }
 
-boolean McpCommand(void)
+bool McpCommand(void)
 {
-  boolean serviced = true;
+  bool serviced = true;
   unsigned long value = 0;
 
   if (CMND_POWERSET == energy_command_code) {
@@ -616,7 +616,7 @@ boolean McpCommand(void)
  * Interface
 \*********************************************************************************************/
 
-int Xnrg04(byte function)
+int Xnrg04(uint8_t function)
 {
   int result = 0;
 

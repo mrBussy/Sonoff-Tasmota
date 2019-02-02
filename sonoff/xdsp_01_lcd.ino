@@ -1,7 +1,7 @@
 /*
   xdsp_01_lcd.ino - Display LCD support for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends and Adafruit
+  Copyright (C) 2019  Theo Arends and Adafruit
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ LiquidCrystal_I2C *lcd;
 
 /*********************************************************************************************/
 
-void LcdInitMode()
+void LcdInitMode(void)
 {
   lcd->init();
   lcd->clear();
@@ -54,7 +54,7 @@ void LcdInit(uint8_t mode)
   }
 }
 
-void LcdInitDriver()
+void LcdInitDriver(void)
 {
   if (!Settings.display_model) {
     if (I2cDevice(LCD_ADDRESS1)) {
@@ -78,7 +78,7 @@ void LcdInitDriver()
   }
 }
 
-void LcdDrawStringAt()
+void LcdDrawStringAt(void)
 {
   lcd->setCursor(dsp_x, dsp_y);
   lcd->print(dsp_str);
@@ -97,7 +97,7 @@ void LcdDisplayOnOff(uint8_t on)
 
 #ifdef USE_DISPLAY_MODES1TO5
 
-void LcdCenter(byte row, char* txt)
+void LcdCenter(uint8_t row, char* txt)
 {
   int offset;
   int len;
@@ -112,9 +112,9 @@ void LcdCenter(byte row, char* txt)
   lcd->print(line);
 }
 
-boolean LcdPrintLog()
+bool LcdPrintLog(void)
 {
-  boolean result = false;
+  bool result = false;
 
   disp_refresh--;
   if (!disp_refresh) {
@@ -125,7 +125,7 @@ boolean LcdPrintLog()
     if (txt != NULL) {
       uint8_t last_row = Settings.display_rows -1;
 
-      for (byte i = 0; i < last_row; i++) {
+      for (uint8_t i = 0; i < last_row; i++) {
         strlcpy(disp_screen_buffer[i], disp_screen_buffer[i +1], disp_screen_buffer_cols);
         lcd->setCursor(0, i);            // Col 0, Row i
         lcd->print(disp_screen_buffer[i +1]);
@@ -145,7 +145,7 @@ boolean LcdPrintLog()
   return result;
 }
 
-void LcdTime()
+void LcdTime(void)
 {
   char line[Settings.display_cols[0] +1];
 
@@ -155,7 +155,7 @@ void LcdTime()
   LcdCenter(1, line);
 }
 
-void LcdRefresh()  // Every second
+void LcdRefresh(void)  // Every second
 {
   if (Settings.display_mode) {  // Mode 0 is User text
     switch (Settings.display_mode) {
@@ -181,9 +181,9 @@ void LcdRefresh()  // Every second
  * Interface
 \*********************************************************************************************/
 
-boolean Xdsp01(byte function)
+bool Xdsp01(uint8_t function)
 {
-  boolean result = false;
+  bool result = false;
 
   if (i2c_flg) {
     if (FUNC_DISPLAY_INIT_DRIVER == function) {
